@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrendLens — Leitor de Gráficos (IQ Option)</title>
+  <style>
+    :root {
+      --bg: #081012;
+      --surface: #0f191c;
+      --elevated: #152328;
+      --border: #213137;
+      --mint: #75f3a3;
+      --emerald: #4ade80;
+      --emerald-bg: #153827;
+      --amber: #f59e0b;
+      --amber-bg: #33250e;
+      --red: #ef4444;
+      --red-bg: #3a161a;
+      --text: #f1f6f7;
+      --muted: #94a3a8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .brand-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--mint);
+      display: grid;
+      place-items: center;
+    }
+    .brand span { color: var(--mint); font-weight: 400; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button, label.btn {
+      background: var(--elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.15s ease;
+    }
+    button:hover, label.btn:hover { border-color: var(--emerald); }
+    button.primary {
+      background: var(--emerald);
+      color: var(--bg);
+      border-color: var(--emerald);
+    }
+    button.active {
+      background: var(--emerald-bg);
+      color: var(--mint);
+      border-color: var(--emerald);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.4px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .toolbar {
+      background: #132024;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .viewport {
+      position: relative;
+      min-height: 360px;
+      background: #050a0c;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      user-select: none;
+    }
+    .viewport video, .viewport img {
+      max-width: 100%;
+      max-height: 460px;
+      display: block;
+      object-fit: contain;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+    .empty-state p { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .selection-box {
+      position: absolute;
+      border: 2px dashed var(--emerald);
+      background: rgba(74, 222, 128, 0.08);
+      border-radius: 10px;
+      pointer-events: none;
+      display: none;
+    }
+    .notice {
+      background: var(--amber-bg);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .panel-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .signal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .pill.up { background: var(--emerald-bg); color: var(--emerald); }
+    .pill.down { background: var(--red-bg); color: var(--red); }
+    .pill.neutral { background: var(--amber-bg); color: var(--amber); }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#081012" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="2 13 7 13 10 5 14 19 17 9 19 13 22 13"></polyline>
+          </svg>
+        </div>
+        trend<span>lens</span>
+      </div>
+      <div class="actions">
+        <button id="voiceToggleBtn" class="active" type="button">Voz: Ativa</button>
+        <button id="openIqBtn" type="button">Abrir IQ Option</button>
+      </div>
+    </header>
+
+    <div class="status-row">
+      <span>GRÁFICO EM DESTAQUE</span>
+      <span id="statusLabel">Aguardando captura ou imagem</span>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="captureTabBtn" class="primary" type="button">Capturar tela/aba</button>
+          <label class="btn" for="imageInput">Carregar print</label>
+          <input id="imageInput" type="file" accept="image/*" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="markAreaBtn" type="button">Marcar área</button>
+          <button id="analyzeNowBtn" type="button">Analisar agora</button>
+        </div>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <video id="videoPreview" autoplay muted playsinline style="display:none;"></video>
+        <img id="imagePreview" alt="Prévia do gráfico" style="display:none;" />
+        <div class="empty-state" id="emptyState">
+          <strong>TrendLens Standalone (Provedor Separado)</strong>
+          <p>
+            Abra a <b>IQ Option</b> em uma aba separada e clique em <b>Capturar tela/aba</b>
+            (ou carregue um print do gráfico). Depois marque a área dos candles para leitura a cada
+            <b>1 minuto</b> em voz alta.
+          </p>
+        </div>
+        <div class="selection-box" id="selectionBox"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-body">
+        <div class="notice">
+          Modo demonstrativo: este arquivo autônomo realiza leitura visual local (proporção de velas verdes e vermelhas na área marcada) e anuncia em voz alta via Web Speech API (pt-BR).
+        </div>
+
+        <div class="signal-row">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="signalPill" class="pill neutral">LEITURA INDISPONÍVEL</span>
+            <span id="timestampText" style="font-size:12px;color:var(--muted);">--:--:--</span>
+          </div>
+          <button id="speakAgainBtn" type="button">Ouvir tendência</button>
+        </div>
+
+        <p id="summaryText" style="font-size:13px;color:var(--muted);">
+          Capture a aba da IQ Option ou carregue uma imagem e marque a área para iniciar.
+        </p>
+
+        <div class="controls">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--muted);">Intervalo:</span>
+            <button class="interval-btn" data-sec="30" type="button">30s</button>
+            <button class="interval-btn active" data-sec="60" type="button">1 min</button>
+            <button class="interval-btn" data-sec="120" type="button">2 min</button>
+            <button class="interval-btn" data-sec="300" type="button">5 min</button>
+          </div>
+          <span id="countdownLabel" style="font-size:12px;color:var(--mint);">Próxima em 1:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="workCanvas" style="display:none;"></canvas>
+
+  <script>
+    const IQ_OPTION_URL = "https://iqoption.com";
+    const viewport = document.getElementById("viewport");
+    const videoEl = document.getElementById("videoPreview");
+    const imgEl = document.getElementById("imagePreview");
+    const emptyState = document.getElementById("emptyState");
+    const selectionBox = document.getElementById("selectionBox");
+    const workCanvas = document.getElementById("workCanvas");
+
+    const statusLabel = document.getElementById("statusLabel");
+    const signalPill = document.getElementById("signalPill");
+    const timestampText = document.getElementById("timestampText");
+    const summaryText = document.getElementById("summaryText");
+    const countdownLabel = document.getElementById("countdownLabel");
+
+    let voiceEnabled = true;
+    let intervalSec = 60;
+    let countdownSec = 60;
+    let isMarking = false;
+    let dragStart = null;
+    let markedNormRect = { left: 0.1, top: 0.2, right: 0.9, bottom: 0.8 };
+    let hasSource = false;
+    let lastSpokenMessage = "";
+    let timerId = null;
+
+    document.getElementById("openIqBtn").addEventListener("click", () => {
+      window.open(IQ_OPTION_URL, "_blank", "noopener,noreferrer");
+    });
+
+    document.getElementById("voiceToggleBtn").addEventListener("click", (e) => {
+      voiceEnabled = !voiceEnabled;
+      e.target.textContent = voiceEnabled ? "Voz: Ativa" : "Voz: Muda";
+      e.target.classList.toggle("active", voiceEnabled);
+      if (!voiceEnabled && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    });
+
+    document.getElementById("captureTabBtn").addEventListener("click", async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        alert("Captura de aba disponível em navegadores desktop modernos. No celular, use 'Carregar print'.");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        videoEl.srcObject = stream;
+        videoEl.style.display = "block";
+        imgEl.style.display = "none";
+        emptyState.style.display = "none";
+        hasSource = true;
+        showSelectionBox();
+        startLoop();
+        runAnalysis();
+      } catch (err) {
+        console.warn("Captura cancelada:", err);
+      }
+    });
+
+    document.getElementById("imageInput").addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (videoEl.srcObject) {
+          videoEl.srcObject.getTracks().forEach(t => t.stop());
+          videoEl.srcObject = null;
+        }
+        imgEl.src = reader.result;
+        imgEl.onload = () => {
+          imgEl.style.display = "block";
+          videoEl.style.display = "none";
+          emptyState.style.display = "none";
+          hasSource = true;
+          showSelectionBox();
+          startLoop();
+          runAnalysis();
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById("markAreaBtn").addEventListener("click", () => {
+      isMarking = !isMarking;
+      document.getElementById("markAreaBtn").classList.toggle("active", isMarking);
+      statusLabel.textContent = isMarking ? "Arraste no gráfico para marcar a área" : "Leitura ativa";
+    });
+
+    document.getElementById("analyzeNowBtn").addEventListener("click", () => {
+      countdownSec = intervalSec;
+      updateCountdownText();
+      runAnalysis();
+    });
+
+    document.getElementById("speakAgainBtn").addEventListener("click", () => {
+      if (lastSpokenMessage) speakText(lastSpokenMessage);
+    });
+
+    document.querySelectorAll(".interval-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".interval-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        intervalSec = Number(btn.dataset.sec) || 60;
+        countdownSec = intervalSec;
+        updateCountdownText();
+      });
+    });
+
+    viewport.addEventListener("pointerdown", (e) => {
+      if (!isMarking) return;
+      const r = viewport.getBoundingClientRect();
+      dragStart = {
+        x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+        y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+      };
+    });
+
+    viewport.addEventListener("pointermove", (e) => {
+      if (!isMarking || !dragStart) return;
+      const r = viewport.getBoundingClientRect();
+      const nx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      const ny = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+      markedNormRect = {
+        left: Math.min(dragStart.x, nx),
+        top: Math.min(dragStart.y, ny),
+        right: Math.max(dragStart.x, nx),
+        bottom: Math.max(dragStart.y, ny)
+      };
+      showSelectionBox();
+    });
+
+    viewport.addEventListener("pointerup", () => {
+      if (!isMarking || !dragStart) return;
+      dragStart = null;
+      isMarking = false;
+      document.getElementById("markAreaBtn").classList.remove("active");
+      if (hasSource) {
+        countdownSec = intervalSec;
+        updateCountdownText();
+        runAnalysis();
+      }
+    });
+
+    function showSelectionBox() {
+      selectionBox.style.display = "block";
+      selectionBox.style.left = (markedNormRect.left * 100) + "%";
+      selectionBox.style.top = (markedNormRect.top * 100) + "%";
+      selectionBox.style.width = ((markedNormRect.right - markedNormRect.left) * 100) + "%";
+      selectionBox.style.height = ((markedNormRect.bottom - markedNormRect.top) * 100) + "%";
+    }
+
+    function startLoop() {
+      if (timerId) clearInterval(timerId);
+      countdownSec = intervalSec;
+      updateCountdownText();
+      timerId = setInterval(() => {
+        if (!hasSource || isMarking) return;
+        countdownSec--;
+        if (countdownSec <= 0) {
+          countdownSec = intervalSec;
+          runAnalysis();
+        }
+        updateCountdownText();
+      }, 1000);
+    }
+
+    function updateCountdownText() {
+      const m = Math.floor(countdownSec / 60);
+      const s = countdownSec % 60;
+      const formatted = m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+      countdownLabel.textContent = `Próxima em ${formatted}`;
+      if (hasSource && !isMarking) {
+        statusLabel.textContent = `Leitura ativa (${formatted})`;
+      }
+    }
+
+    function runAnalysis() {
+      if (!hasSource) return;
+      const source = videoEl.style.display === "block" ? videoEl : imgEl;
+      const srcW = source.videoWidth || source.naturalWidth || 0;
+      const srcH = source.videoHeight || source.naturalHeight || 0;
+      if (srcW <= 0 || srcH <= 0) return;
+
+      const sx = Math.floor(markedNormRect.left * srcW);
+      const sy = Math.floor(markedNormRect.top * srcH);
+      const sw = Math.max(10, Math.floor((markedNormRect.right - markedNormRect.left) * srcW));
+      const sh = Math.max(10, Math.floor((markedNormRect.bottom - markedNormRect.top) * srcH));
+
+      workCanvas.width = 160;
+      workCanvas.height = 120;
+      const ctx = workCanvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, 160, 120);
+      const pixels = ctx.getImageData(0, 0, 160, 120).data;
+
+      let green = 0, red = 0;
+      for (let y = 0; y < 120; y += 2) {
+        for (let x = 0; x < 160; x += 2) {
+          const idx = (y * 160 + x) * 4;
+          const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
+          const weight = x >= 80 ? 2 : 1;
+          if (g > r + 28 && g > b + 20 && g > 90) green += weight;
+          else if (r > g + 28 && r > b + 20 && r > 90) red += weight;
+        }
+      }
+
+      const total = green + red;
+      const ratio = total > 0 ? green / total : 0.5;
+      let dir = "NEUTRAL";
+      if (total >= 20 && ratio >= 0.56) dir = "UP";
+      else if (total >= 20 && ratio <= 0.44) dir = "DOWN";
+
+      const confidence = dir === "UP"
+        ? Math.min(89, Math.max(65, Math.round(68 + (ratio - 0.5) * 45)))
+        : dir === "DOWN"
+          ? Math.min(89, Math.max(65, Math.round(68 + (0.5 - ratio) * 45)))
+          : 55;
+
+      const horizon = intervalSec === 60 ? "um minuto"
+        : intervalSec === 120 ? "dois minutos"
+        : intervalSec === 300 ? "cinco minutos"
+        : `${intervalSec} segundos`;
+
+      signalPill.className = "pill " + (dir === "UP" ? "up" : dir === "DOWN" ? "down" : "neutral");
+      if (dir === "UP") {
+        signalPill.textContent = `ACIMA (Compra) • ${confidence}%`;
+        summaryText.textContent = `Leitura de exemplo: predominância de velas verdes (${Math.round(ratio * 100)}%) na área marcada para ${horizon}.`;
+        lastSpokenMessage = `Tendência de alta para ${horizon}. Sinal acima, com ${confidence} por cento de confiança.`;
+      } else if (dir === "DOWN") {
+        signalPill.textContent = `ABAIXO (Venda) • ${confidence}%`;
+        summaryText.textContent = `Leitura de exemplo: predominância de velas vermelhas (${Math.round((1 - ratio) * 100)}%) na área marcada para ${horizon}.`;
+        lastSpokenMessage = `Tendência de baixa para ${horizon}. Sinal abaixo, com ${confidence} por cento de confiança.`;
+      } else {
+        signalPill.textContent = `AGUARDAR • ${confidence}%`;
+        summaryText.textContent = `Leitura de exemplo: equilíbrio entre velas na área marcada para ${horizon}.`;
+        lastSpokenMessage = `Mercado lateral para ${horizon}. Melhor aguardar confirmação.`;
+      }
+
+      timestampText.textContent = new Date().toLocaleTimeString("pt-BR");
+      if (voiceEnabled) speakText(lastSpokenMessage);
+    }
+
+    function speakText(text) {
+      if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "pt-BR";
+      utter.rate = 1.0;
+      window.speechSynthesis.speak(utter);
+    }
+  </script>
+</body>
+</html>

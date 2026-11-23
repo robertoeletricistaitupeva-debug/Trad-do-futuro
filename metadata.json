@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix TradePulse",
+  "description": "A professional trading platform for real-time market analysis, asset management, and seamless financial execution.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
